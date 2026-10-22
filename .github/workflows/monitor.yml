@@ -1,0 +1,34 @@
+name: CGV Monitor
+
+on:
+  workflow_dispatch:          # 수동 실행 (이때만 시작 메시지 전송)
+  schedule:
+    - cron: "*/15 * * * *"    # 15분마다 깨우고, 내부에서 2분 간격 반복
+
+concurrency:
+  group: cgv-monitor
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 58
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: |
+          pip install -r requirements.txt
+          playwright install --with-deps chromium
+      - run: python monitor.py
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SEND_START_MESSAGE: ${{ github.event_name == 'workflow_dispatch' }}
+          CUTOFF_DATE: "2026-10-30"
+          LOOP_MINUTES: "50"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: debug
+          path: debug.png
+          if-no-files-found: ignore
