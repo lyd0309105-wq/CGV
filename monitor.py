@@ -9,6 +9,7 @@ CUTOFF = dt.date.fromisoformat(os.getenv("CUTOFF_DATE", "2026-10-30"))  # 이 �
 LOOP_MINUTES = int(os.getenv("LOOP_MINUTES", "50"))   # 한 번 실행 시 반복 시간
 INTERVAL = int(os.getenv("INTERVAL_SEC", "120"))      # 2분
 SEND_START = os.getenv("SEND_START_MESSAGE", "false") == "true"
+HEARTBEAT = os.getenv("HEARTBEAT", "true") == "true"  # 2분마다 확인 결과 알림 (끄려면 false)
 KST = dt.timezone(dt.timedelta(hours=9))
 
 
@@ -103,6 +104,10 @@ def main():
             try:
                 found = check(page)
                 print(dt.datetime.now(KST), "found:", found)
+                now = dt.datetime.now(KST).strftime("%H:%M:%S")
+                if HEARTBEAT:
+                    notify(f"🔄 [{now}] 확인 완료 - 열린 날짜: "
+                           + (", ".join(d.strftime("%m/%d") for d in found) if found else "없음"))
                 new = [d for d in found if d not in notified]
                 if new:
                     notified.update(new)
@@ -110,6 +115,8 @@ def main():
                            + "\nhttps://cgv.co.kr")
             except Exception as e:
                 print("error:", e)
+                if HEARTBEAT:
+                    notify(f"⚠️ [{dt.datetime.now(KST).strftime('%H:%M:%S')}] 확인 실패: {str(e)[:300]}")
                 page.screenshot(path="debug.png", full_page=True)
             finally:
                 ctx.close()
